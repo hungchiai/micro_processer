@@ -1,0 +1,45 @@
+
+// GPIO_LED : GPIO output to control an on-board red LED
+
+// EVB : Nu-LB-NUC140
+// MCU : NUC140VE3CN
+
+// low-active output control by GPC12
+
+//每個 LED（PC15 到 PC12）會依序亮一下（0 是點亮 LED，因為多數板子是 active-low），然後熄滅。
+
+//每顆 LED 亮約 100000 個 tick 的時間（取決於系統時鐘，一般約為 0.1 秒），然後等 3 秒 再重複。
+
+#include <stdio.h>
+#include "NUC100Series.h"
+#include "MCU_init.h"
+#include "SYS_init.h"
+
+int main(void)
+{
+	SYS_Init();
+	GPIO_SetMode(PC, BIT12, GPIO_MODE_OUTPUT);
+	GPIO_SetMode(PC, BIT13, GPIO_MODE_OUTPUT);
+	GPIO_SetMode(PC, BIT14, GPIO_MODE_OUTPUT);
+	GPIO_SetMode(PC, BIT15, GPIO_MODE_OUTPUT);
+	while (1)
+	{
+		PC15 = 0;				  // 點亮LED
+		CLK_SysTickDelay(100000); // Delay
+		PC15 = 1;				  // turn off LED
+		CLK_SysTickDelay(100000); // Delay
+		PC14 = 0;				  
+		CLK_SysTickDelay(100000); // Delay
+		PC14 = 1;				  
+		CLK_SysTickDelay(100000); // Delay
+		PC13 = 0;				  
+		CLK_SysTickDelay(100000); // Delay
+		PC13 = 1;				  
+		CLK_SysTickDelay(100000); // Delay
+		PC12 = 0;				  
+		CLK_SysTickDelay(100000); // Delay
+		PC12 = 1;				  
+		CLK_SysTickDelay(100000); // Delay
+		CLK_SysTickDelay(3000000);
+	}
+}
