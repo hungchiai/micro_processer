@@ -1,0 +1,134 @@
+//
+// GPIO_LED : GPIO output to control an on-board red LED
+//
+// EVB : Nu-LB-NUC140
+// MCU : NUC140VE3CN
+
+// low-active output control by GPC12
+
+
+#include <stdio.h>
+#include "NUC100Series.h"
+#include "MCU_init.h"
+#include "SYS_init.h"
+
+int main(void)
+{
+    SYS_Init(); 
+
+    // 設定 PC12 ~ PC15 為輸出模式（控制 LED）
+    GPIO_SetMode(PC, BIT12, GPIO_MODE_OUTPUT);
+    GPIO_SetMode(PC, BIT13, GPIO_MODE_OUTPUT);
+    GPIO_SetMode(PC, BIT14, GPIO_MODE_OUTPUT);
+    GPIO_SetMode(PC, BIT15, GPIO_MODE_OUTPUT);
+
+    while (1)
+    {
+        // LED 順序依序閃爍（PC15 → PC12）
+        PC15 = 0; 
+        CLK_SysTickDelay(100000); 
+        PC15 = 1; 
+        CLK_SysTickDelay(100000);
+
+        PC14 = 0; 
+        CLK_SysTickDelay(100000);
+        PC14 = 1; 
+        CLK_SysTickDelay(100000);
+
+        PC13 = 0; 
+        CLK_SysTickDelay(100000);
+        PC13 = 1; 
+        CLK_SysTickDelay(100000);
+
+        PC12 = 0; 
+        CLK_SysTickDelay(100000);
+        PC12 = 1; 
+        CLK_SysTickDelay(100000);
+
+        // 全部熄滅一次
+        PC12 = 1;
+        PC13 = 1;
+        PC14 = 1;
+        PC15 = 1;
+        CLK_SysTickDelay(1000000); 
+
+        // 全部點亮一次
+        PC12 = 0;
+        PC13 = 0;
+        PC14 = 0;
+        PC15 = 0;
+        CLK_SysTickDelay(1000000);
+
+        // 全部熄滅一次
+        PC12 = 1;
+        PC13 = 1;
+        PC14 = 1;
+        PC15 = 1;
+        CLK_SysTickDelay(1000000);
+
+        // 全部再點亮一次
+        PC12 = 0;
+        PC13 = 0;
+        PC14 = 0;
+        PC15 = 0;
+        CLK_SysTickDelay(1000000);
+
+        // 單顆 LED 從 PC12 向上點亮，模擬跑馬燈效果
+
+        PC12 = 0; 
+        PC13 = 1;
+        PC14 = 1;
+        PC15 = 1;
+        CLK_SysTickDelay(300000); 
+
+        PC12 = 1; 
+        CLK_SysTickDelay(100000);
+
+        PC13 = 0; 
+        CLK_SysTickDelay(100000);
+        PC13 = 1; 
+        CLK_SysTickDelay(100000);
+
+        PC14 = 0; 
+        CLK_SysTickDelay(100000);
+        PC14 = 1; 
+        CLK_SysTickDelay(100000);
+
+        PC15 = 0; // 點亮 LED15
+        CLK_SysTickDelay(100000);
+
+        PC15 = 1; // 熄滅 LED15
+        CLK_SysTickDelay(100000);
+
+        // 再執行一次 全亮→全滅 效果
+        PC12 = 1;
+        PC13 = 1;
+        PC14 = 1;
+        PC15 = 1;
+        CLK_SysTickDelay(1000000);
+
+        PC12 = 0;
+        PC13 = 0;
+        PC14 = 0;
+        PC15 = 0;
+        CLK_SysTickDelay(1000000);
+
+        PC12 = 1;
+        PC13 = 1;
+        PC14 = 1;
+        PC15 = 1;
+        CLK_SysTickDelay(1000000);
+
+        PC12 = 0;
+        PC13 = 0;
+        PC14 = 0;
+        PC15 = 0;
+        CLK_SysTickDelay(1000000);
+
+        PC12 = 1;
+        PC13 = 1;
+        PC14 = 1;
+        PC15 = 1;
+        CLK_SysTickDelay(1000000);
+    }
+}
