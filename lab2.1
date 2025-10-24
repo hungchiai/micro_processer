@@ -1,0 +1,135 @@
+//利用 鍵盤掃描函式 Scan() 讀取你按了哪個數字鍵（1~9）
+再把最新按下的數字往後排，顯示在四個 7 段顯示器上
+顯示的數字會「往左推」，最新的永遠顯示在最右邊（像隊列 queue）
+
+
+//加了 if(tmp[i] < 16) 的檢查，讓顯示更穩定，初始化階段也不會亂閃
+
+#include <stdio.h>
+#include "NUC100Series.h"
+#include "MCU_init.h"
+#include "SYS_init.h"
+#include "Seven_Segment.h"
+#include "Scankey.h"
+
+// 顯示一個四位數字在四個七段顯示器上
+void Display_7seg(uint16_t value)
+{
+    uint8_t digit;
+
+    digit = value / 1000;              
+    CloseSevenSegment();               
+    ShowSevenSegment(3, digit);        
+    CLK_SysTickDelay(5000);            
+
+    value = value - digit * 1000;      
+    digit = value / 100;               
+    CloseSevenSegment();
+    ShowSevenSegment(2, digit);        
+    CLK_SysTickDelay(5000);
+
+    value = value - digit * 100;       
+    digit = value / 10;                
+    CloseSevenSegment();
+    ShowSevenSegment(1, digit);        
+    CLK_SysTickDelay(5000);
+
+    value = value - digit * 10;        
+    digit = value;                     
+    CloseSevenSegment();
+    ShowSevenSegment(0, digit);        
+    CLK_SysTickDelay(5000);
+}
+
+// 掃描矩陣式按鍵，回傳按下的數字鍵（1~9），若無按鍵則回傳 0
+uint8_t Scan(void)
+{
+    // 掃描第一列（PA2 為 0，其它為 1）
+    PA0 = 1;
+    PA1 = 1;
+    PA2 = 0;
+    PA3 = 1;
+    PA4 = 1;
+    PA5 = 1;
+    if (PA3 == 0) return 7;
+    if (PA4 == 0) return 4;
+    if (PA5 == 0) return 1;
+
+    // 掃描第二列（PA1 為 0，其它為 1）
+    PA0 = 1;
+    PA1 = 0;
+    PA2 = 1;
+    PA3 = 1;
+    PA4 = 1;
+    PA5 = 1;
+    if (PA3 == 0) return 8;
+    if (PA4 == 0) return 5;
+    if (PA5 == 0) return 2;
+
+    // 掃描第三列（PA0 為 0，其它為 1）
+    PA0 = 0;
+    PA1 = 1;
+    PA2 = 1;
+    PA3 = 1;
+    PA4 = 1;
+    PA5 = 1;
+    if (PA3 == 0) return 9;
+    if (PA4 == 0) return 6;
+    if (PA5 == 0) return 3;
+
+    return 0; // 若沒有任何按鍵被按下
+}
+
+int main(void)
+{
+    int time = 0;                      
+    int index = 0;                     
+    int tmp[4] = {16, 16, 16, 16};     // 用來記錄最近按下的四個數字（16 表示空白，不顯示）
+    int num;                           // 當前按下的數字
+    int last;                          // 上一次按下的數字
+    uint16_t i;                        
+
+    SYS_Init();                        
+    OpenSevenSegment();                
+    OpenKeyPad();                      
+
+    while (1)
+    {
+        num = Scan();                  
+        if (num != 0 && last != num)   // 避免重複輸入
+{
+            
+            tmp[0] = tmp[1];
+            tmp[1] = tmp[2];
+            tmp[2] = tmp[3];
+            tmp[3] = num;
+        }
+
+        // 顯示四個數字（只有在數值 < 16 時才顯示，有效防止顯示錯誤）
+        if (tmp[0] < 16) {
+            CloseSevenSegment();
+            ShowSevenSegment(3, tmp[0]);  // 顯示最舊的數字（最左邊）
+            CLK_SysTickDelay(5000);
+        }
+
+        if (tmp[1] < 16) {
+            CloseSevenSegment();
+            ShowSevenSegment(2, tmp[1]);
+            CLK_SysTickDelay(5000);
+        }
+
+        if (tmp[2] < 16) {
+            CloseSevenSegment();
+            ShowSevenSegment(1, tmp[2]);
+            CLK_SysTickDelay(5000);
+        }
+
+        if (tmp[3] < 16) {
+            CloseSevenSegment();
+            ShowSevenSegment(0, tmp[3]);  // 顯示最新按下的數字（最右邊）
+            CLK_SysTickDelay(5000);
+        }
+
+        last = num;  
+    }
+}
