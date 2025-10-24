@@ -1,0 +1,142 @@
+//功能	      按鍵	  說明
+  輸入數字	    1~6	    將按下的數字加入顯示區，從右往左推
+  清除所有輸入	  8	    將顯示清空（變成空白）
+  向左循環移動	  7	    將顯示數字整體往左移動一格（第 0 位移到最後）
+  向右循環移動	  9	    將顯示數字整體往右移動一格（最後一位移到第 0 位）
+
+
+#include <stdio.h>
+#include "NUC100Series.h"
+#include "MCU_init.h"
+#include "SYS_init.h"
+#include "Seven_Segment.h"
+#include "Scankey.h"
+
+// 將一個整數（0~9999）分別顯示在 4 位七段顯示器上
+void Display_7seg(uint16_t value)
+{
+    uint8_t digit;
+
+    digit = value / 1000;          // 取千位
+    CloseSevenSegment();
+    ShowSevenSegment(3, digit);    // 顯示在第 3 顆 7 段顯示器（最左）
+    CLK_SysTickDelay(5000);
+
+    value = value - digit * 1000;  // 移除千位數字
+    digit = value / 100;           // 取百位
+    CloseSevenSegment();
+    ShowSevenSegment(2, digit);    // 顯示在第 2 顆
+    CLK_SysTickDelay(5000);
+
+    value = value - digit * 100;   // 移除百位數字
+    digit = value / 10;            // 取十位
+    CloseSevenSegment();
+    ShowSevenSegment(1, digit);    // 顯示在第 1 顆
+    CLK_SysTickDelay(5000);
+
+    value = value - digit * 10;    // 取個位
+    digit = value;
+    CloseSevenSegment();
+    ShowSevenSegment(0, digit);    // 顯示在第 0 顆（最右）
+    CLK_SysTickDelay(5000);
+}
+
+// 掃描 3x3 矩陣鍵盤，回傳 1~9，沒按鍵時回傳 0
+uint8_t Scan(void)
+{
+    // 掃描第一列
+    PA0 = 1; PA1 = 1; PA2 = 0;
+    PA3 = 1; PA4 = 1; PA5 = 1;
+    if (PA3 == 0) return 7;
+    if (PA4 == 0) return 4;
+    if (PA5 == 0) return 1;
+
+    // 掃描第二列
+    PA0 = 1; PA1 = 0; PA2 = 1;
+    PA3 = 1; PA4 = 1; PA5 = 1;
+    if (PA3 == 0) return 8;
+    if (PA4 == 0) return 5;
+    if (PA5 == 0) return 2;
+
+    // 掃描第三列
+    PA0 = 0; PA1 = 1; PA2 = 1;
+    PA3 = 1; PA4 = 1; PA5 = 1;
+    if (PA3 == 0) return 9;
+    if (PA4 == 0) return 6;
+    if (PA5 == 0) return 3;
+
+    return 0; 
+
+int main(void)
+{
+    int tmp[4] = {16, 16, 16, 16}; 
+    int num;                       
+    int last;                      
+    int shift;                     
+    int l;                         
+
+    SYS_Init();                    
+    OpenSevenSegment();            
+    OpenKeyPad();                  
+
+    while (1)
+    {
+        num = Scan(); 
+        if (last != num) 
+        {
+            if (num == 7)  // 向左循環位移
+            {
+                shift = tmp[3];           // 儲存最後一位
+                for (l = 3; l > 0; l--)
+                    tmp[l] = tmp[l - 1];  // 每一位往後移
+                tmp[0] = shift;           // 將最後一位移到最前
+            }
+            else if (num == 8)  
+            {
+                tmp[0] = 16;
+                tmp[1] = 16;
+                tmp[2] = 16;
+                tmp[3] = 16;
+
+                CloseSevenSegment(); 
+            }
+            else if (num == 9)  // 向右循環位移
+            {
+                shift = tmp[0];           // 儲存第一位
+                for (l = 0; l < 3; l++)
+                    tmp[l] = tmp[l + 1];  // 每一位往前移
+                tmp[3] = shift;           // 將第一位移到最後
+            }
+            else if (num > 0 && num < 7)  // 按下的是 1~6 數字
+            {
+                for (l = 3; l > 0; l--)
+                    tmp[l] = tmp[l - 1];  // 全部往後推一格
+                tmp[0] = num;             // 將新數字放到最前
+            }
+        }
+
+        
+        if (tmp[3] < 16) {
+            CloseSevenSegment();
+            ShowSevenSegment(3, tmp[3]);
+            CLK_SysTickDelay(5000);
+        }
+        if (tmp[2] < 16) {
+            CloseSevenSegment();
+            ShowSevenSegment(2, tmp[2]);
+            CLK_SysTickDelay(5000);
+        }
+        if (tmp[1] < 16) {
+            CloseSevenSegment();
+            ShowSevenSegment(1, tmp[1]);
+            CLK_SysTickDelay(5000);
+        }
+        if (tmp[0] < 16) {
+            CloseSevenSegment();
+            ShowSevenSegment(0, tmp[0]);
+            CLK_SysTickDelay(5000);
+        }
+
+        last = num; 
+    }
+}
