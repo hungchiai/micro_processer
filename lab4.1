@@ -1,0 +1,84 @@
+//參考音調表，讓蜂鳴器產生 Do、Re、Mi、Fa、So、La、Si  每個音持續 0.2s，間隔0.2s。
+
+// GPIO_7seg_keypad4_buzz :
+//     keypad input 4 digits and display on 7-segment LEDs
+//     compare 4 digits to a passcode
+//     if input is equal to then passcode, then buzz twice
+//
+
+
+#include <stdio.h>
+#include <math.h>
+#include "NUC100Series.h"
+#include "MCU_init.h"
+#include "SYS_init.h"
+#include "Seven_Segment.h"
+#include "Scankey.h"
+
+// 播放單一音符的函式
+// high_delay：蜂鳴器為低電位的時間 (us)
+// low_delay：蜂鳴器為高電位的時間 (us)
+// total_time_ms：該音符持續時間 (ms)
+void PlayTone(int high_delay, int low_delay, int total_time_ms)
+{
+    int elapsed = 0;
+
+    
+    while (elapsed < total_time_ms)
+    {
+        PB11 = 0;  // 將 PB11 設為低電位（打開蜂鳴器）
+        CLK_SysTickDelay(high_delay); // 延遲 (us)
+        
+        PB11 = 1;  // 將 PB11 設為高電位（關閉蜂鳴器）
+        CLK_SysTickDelay(low_delay);  // 延遲 (us)
+
+        // 計算已播放的時間，轉換為毫秒 (ms)
+        elapsed += (high_delay + low_delay) / 1000;
+    }
+}
+
+// 播放一組簡單旋律的函數（Do 到 Si）
+void Buzz()
+{
+    const int note_time = 200;  // 每個音符播放 200ms
+    const int gap_time  = 200;  // 音符之間間隔 200ms
+
+    PlayTone(1200, 2800, note_time); // Do
+    CLK_SysTickDelay(gap_time * 1000);
+
+    PlayTone(1000, 2300, note_time); // Re
+    CLK_SysTickDelay(gap_time * 1000);
+
+    PlayTone(900, 2100, note_time);  // Mi
+    CLK_SysTickDelay(gap_time * 1000);
+
+    PlayTone(840, 1960, note_time);  // Fa
+    CLK_SysTickDelay(gap_time * 1000);
+
+    PlayTone(750, 1750, note_time);  // So
+    CLK_SysTickDelay(gap_time * 1000);
+
+    PlayTone(681, 1589, note_time);  // La
+    CLK_SysTickDelay(gap_time * 1000);
+
+    PlayTone(600, 1400, note_time);  // Si
+    CLK_SysTickDelay(gap_time * 1000);
+}
+
+
+int main(void)
+{
+    SYS_Init();  
+
+    OpenSevenSegment();  
+    OpenKeyPad();        
+    
+  
+    GPIO_SetMode(PB, BIT11, GPIO_MODE_OUTPUT);
+
+    
+    while (1)
+    {
+        Buzz();
+    }
+}
