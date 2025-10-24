@@ -1,0 +1,169 @@
+使用者透過鍵盤輸入 4 個 1~6 的數字，與系統隨機產生的 4 位數密碼進行比較：
+若輸入數字與隨機密碼全數相同，顯示 PASS，並閃爍 LED 表示成功。
+若不符，顯示 ERROR 並蜂鳴器響，最多可以嘗試 4 次。
+可使用鍵盤功能鍵：
+7：重新產生隨機密碼
+8：清除所有輸入與 LCD 顯示
+9：提交答案進行比對
+
+
+#include <stdio.h>
+#include "NUC100Series.h"
+#include "MCU_init.h"
+#include "SYS_init.h"
+#include "Scankey.h"
+#include "Seven_Segment.h"
+#include "LCD.h"
+#include <stdlib.h>
+
+int main(void)
+{
+	char text[16] = "";           
+	int last;                    
+	int scan;                    
+	int a[4] = {16, 16, 16, 16}; 
+	int input[4] = {NULL, NULL, NULL, NULL};  
+	int i = 0;                   
+	int seed = 0;                
+	int trytime = 0;             
+	int l;                       
+	int flag = 0;                
+
+	SYS_Init();                  
+	OpenSevenSegment();          
+	OpenKeyPad();                
+	init_LCD();                  
+	clear_LCD();                 
+
+	while (1)
+	{
+		scan = ScanKey();        
+		seed++;                  
+		srand(seed);             
+
+		
+		if (scan != 0 && last != scan)
+		{
+			
+			if (scan >= 1 && scan <= 6)
+			{
+				input[i] = scan;   
+
+				// 在 LCD 第 trytime 行顯示目前輸入的內容
+				if (i == 0)
+					sprintf(text, "%d", input[0]);
+				else if (i == 1)
+					sprintf(text, "%d%d", input[0], input[1]);
+				else if (i == 2)
+					sprintf(text, "%d%d%d", input[0], input[1], input[2]);
+				else if (i == 3)
+					sprintf(text, "%d%d%d%d", input[0], input[1], input[2], input[3]);
+
+				print_Line(trytime, text);
+				i++;
+
+				// 最多輸入四位數
+				if (i == 4)
+					i = 0;
+			}
+
+			// 按鍵 7：重新產生四個亂數密碼
+			if (scan == 7)
+			{
+				a[0] = rand() % 6 + 1;
+				a[1] = rand() % 6 + 1;
+				a[2] = rand() % 6 + 1;
+				a[3] = rand() % 6 + 1;
+			}
+
+			// 按鍵 8：清除所有輸入、畫面與重設嘗試次數
+			if (scan == 8)
+			{
+				clear_LCD();
+				input[0] = NULL;
+				input[1] = NULL;
+				input[2] = NULL;
+				input[3] = NULL;
+				trytime = 0;
+			}
+
+			// 按鍵 9：送出答案做比對，最多可嘗試 4 次
+			if (scan == 9 && trytime < 4)
+			{
+				// 檢查每個輸入值是否為空
+				for (l = 0; l < 4; l++)
+				{
+					if (input[l] == NULL)
+					{
+						printS(80, trytime * 16, "NULL");
+						flag = 1;
+						break;
+					}
+					else if (a[l] != input[l])
+					{
+						printS(80, trytime * 16, "ERROR");
+
+						flag = 1;
+						break;
+					}
+				}
+
+				
+				if (flag)
+				{
+					if (trytime == 4)
+					{
+						break; 
+					}
+
+					
+					input[0] = NULL;
+					input[1] = NULL;
+					input[2] = NULL;
+					input[3] = NULL;
+				}
+				else
+				{
+					// 正確輸入：顯示 PASS 並依序閃爍 LED
+					printS(80, trytime * 16, "PASS");
+
+					PC15 = 0; CLK_SysTickDelay(100000); PC15 = 1; CLK_SysTickDelay(100000);
+					PC14 = 0; CLK_SysTickDelay(100000); PC14 = 1; CLK_SysTickDelay(100000);
+					PC13 = 0; CLK_SysTickDelay(100000); PC13 = 1; CLK_SysTickDelay(100000);
+					PC12 = 0; CLK_SysTickDelay(100000); PC12 = 1; CLK_SysTickDelay(100000);
+
+					CLK_SysTickDelay(3000000); 
+
+					PC12 = 0; CLK_SysTickDelay(100000); PC12 = 1; CLK_SysTickDelay(100000);
+					PC13 = 0; CLK_SysTickDelay(100000); PC13 = 1; CLK_SysTickDelay(100000);
+					PC14 = 0; CLK_SysTickDelay(100000); PC14 = 1; CLK_SysTickDelay(100000);
+					PC15 = 0; CLK_SysTickDelay(100000); PC15 = 1; CLK_SysTickDelay(100000);
+
+					CLK_SysTickDelay(3000000); 
+				}
+
+				trytime++;  
+				flag = 0;   
+			}
+		}
+
+		
+		CloseSevenSegment();
+		ShowSevenSegment(3, a[0]);
+		CLK_SysTickDelay(5000);
+
+		CloseSevenSegment();
+		ShowSevenSegment(2, a[1]);
+		CLK_SysTickDelay(5000);
+
+		CloseSevenSegment();
+		ShowSevenSegment(1, a[2]);
+		CLK_SysTickDelay(5000);
+
+		CloseSevenSegment();
+		ShowSevenSegment(0, a[3]);
+		CLK_SysTickDelay(5000);
+
+		last = scan; 
+	}
+}
