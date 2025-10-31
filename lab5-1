@@ -1,0 +1,141 @@
+#include <stdio.h>
+#include "NUC100Series.h"
+#include "MCU_init.h"
+#include "SYS_init.h"
+#include "LCD.h"
+#include "Scankey.h"
+
+unsigned char bmp16x8[16] = {
+    0xFF,0x81,0x81,0x81,0x81,0x81,0x81,0x81,0x81,0x81,0x81,0x81,0x81,0x81,0x81,0xFF
+};
+
+unsigned char bmp8x16[16] = {
+    0xFF,0x01,0x01,0x01,0x01,0x01,0x01,0xFF,0xFF,0x80,0x80,0x80,0x80,0x80,0x80,0xFF
+};
+
+int main(void)
+{
+    int8_t x=0,y=0;
+    int8_t keyin=0;
+    int8_t movX=1, dirX=0;
+    int8_t movY=1, dirY=0;
+    int buzz1 = 0;
+    int count = 0;
+    SYS_Init();
+      
+    init_LCD();
+    clear_LCD();
+    
+    OpenKeyPad();
+    
+  x=56; y=28;   
+
+    draw_Bmp16x8(x,y,FG_COLOR,BG_COLOR,bmp16x8);
+    
+    while(keyin==0) keyin=ScanKey(); // wait till key is pressed
+
+    clear_LCD();
+    
+    while(1) {
+        if(count%2==0){
+            draw_Bmp16x8(x,y,FG_COLOR,BG_COLOR,bmp16x8); // Draw Object
+            CLK_SysTickDelay(100000);                      // Delay for Vision
+            draw_Bmp16x8(x,y,BG_COLOR,BG_COLOR,bmp16x8);
+        }
+        else{
+            draw_Bmp8x16(x,y,FG_COLOR,BG_COLOR,bmp8x16); // Draw Object
+            CLK_SysTickDelay(100000);                      // Delay for Vision
+            draw_Bmp8x16(x,y,BG_COLOR,BG_COLOR,bmp8x16);
+        }  
+    keyin=ScanKey(); // Scan 3x3 keypad
+    switch(keyin){   // input 1~9 to chang (x,y) direction
+            case 2: dirX=0;  dirY=-1; break;
+            case 4: dirX=-1; dirY=0;  break;
+            case 5: count++; break;
+            case 6: dirX=+1; dirY=0;  break;
+            case 8: dirX=0;  dirY=+1; break;        
+            default: break;
+        }
+        
+        x=x + dirX * movX; // increment/decrement X
+        y=y + dirY * movY; // increment/decrement Y
+        
+        if(count%2==0){
+            if (x<0){
+                dirX=+1;
+                x=0;
+                for(buzz1=0;buzz1<50;buzz1++){
+                            PB11=0; // PB11 = 0 to turn on Buzzer
+                            CLK_SysTickDelay(1000);  // Delay 
+                            PB11=1; // PB11 = 1 to turn off Buzzer  
+                }
+            }          
+            if (x>LCD_Xmax-16){
+                dirX=-1;           // check X boundary Max
+                x=LCD_Xmax-20;
+                for(buzz1=0;buzz1<50;buzz1++){
+                            PB11=0; // PB11 = 0 to turn on Buzzer
+                            CLK_SysTickDelay(1000);  // Delay 
+                            PB11=1; // PB11 = 1 to turn off Buzzer  
+                }
+            } 
+            if (y<0){
+                dirY=+1; // check Y boundary Min
+                y=0;
+                for(buzz1=0;buzz1<50;buzz1++){
+                        PB11=0; // PB11 = 0 to turn on Buzzer
+                        CLK_SysTickDelay(1000);  // Delay 
+                        PB11=1; // PB11 = 1 to turn off Buzzer  
+                }
+            } 
+            if(y>LCD_Ymax-8){
+                dirY=-1;                // check Y boundary Max
+                y=LCD_Ymax-12;
+                for(buzz1=0;buzz1<50;buzz1++){
+                    PB11=0; // PB11 = 0 to turn on Buzzer
+                    CLK_SysTickDelay(1000);  // Delay 
+                    PB11=1; // PB11 = 1 to turn off Buzzer  
+                }
+            }
+        }
+        else {
+            if (x<0){
+                dirX=+1;
+                x=0;
+                for(buzz1=0;buzz1<50;buzz1++){
+                            PB11=0; // PB11 = 0 to turn on Buzzer
+                            CLK_SysTickDelay(1000);  // Delay 
+                            PB11=1; // PB11 = 1 to turn off Buzzer  
+                }
+            }          
+            if (x>LCD_Xmax-8){
+                dirX=-1;           // check X boundary Max
+                x=LCD_Xmax-12;
+                for(buzz1=0;buzz1<50;buzz1++){
+                            PB11=0; // PB11 = 0 to turn on Buzzer
+                            CLK_SysTickDelay(1000);  // Delay 
+                            PB11=1; // PB11 = 1 to turn off Buzzer  
+                }
+            } 
+            if (y<0){
+                dirY=+1; // check Y boundary Min
+                y=0;
+                for(buzz1=0;buzz1<50;buzz1++){
+                        PB11=0; // PB11 = 0 to turn on Buzzer
+                        CLK_SysTickDelay(1000);  // Delay 
+                        PB11=1; // PB11 = 1 to turn off Buzzer  
+                }
+            }   
+            if(y>LCD_Ymax-16){
+                dirY=-1;                // check Y boundary Max
+                y=LCD_Ymax-20;
+                for(buzz1=0;buzz1<50;buzz1++){
+                    PB11=0; // PB11 = 0 to turn on Buzzer
+                    CLK_SysTickDelay(1000);  // Delay 
+                    PB11=1; // PB11 = 1 to turn off Buzzer  
+                }
+            }
+        } 
+    }
+}
+
