@@ -1,0 +1,79 @@
+#include <stdio.h>
+#include "NUC100Series.h"
+#include "MCU_init.h"
+#include "SYS_init.h"
+#include "Scankey.h"
+#include "pwm.h"
+#include "LCD.h"
+#include "Note_Freq.h"
+
+uint16_t notes[10] = {
+    0,
+    C4, D4, E4,
+    F4, G4, A4,
+    B4, C5, D5
+};
+
+char *noteName[10] = {
+    "",
+    "C4","D4","E4",
+    "F4","G4","A4",
+    "B4","C5","D5"
+};
+
+void Init_PWM(void)
+{
+    PWM_ConfigOutputChannel(PWM1, PWM_CH0, 440, 40);
+    PWM_DisableOutput(PWM1, PWM_CH_0_MASK);
+    PWM_Start(PWM1, PWM_CH_0_MASK);
+}
+
+void playNote(uint16_t freq)
+{
+    if (freq == 0) {
+        PWM_DisableOutput(PWM1, PWM_CH_0_MASK);
+        return;
+    }
+
+    PWM_ConfigOutputChannel(PWM1, PWM_CH0, freq, 90);
+    PWM_EnableOutput(PWM1, PWM_CH_0_MASK);
+}
+
+int main(void)
+{
+    uint8_t key = 0;
+    uint8_t lastKey = 0;
+    char buf[20];
+
+    SYS_Init();
+    init_LCD();
+    clear_LCD();
+    Init_PWM();
+
+    while (1)
+    {
+        key = ScanKey();
+
+        if (key != 0)
+        {
+            playNote(notes[key]);
+
+            if (key != lastKey)
+            {
+                clear_LCD();
+               
+                sprintf(buf, "Music = %s", noteName[key]);
+                print_Line(0, buf);     // ? ?? print_Line ???????
+
+                lastKey = key;
+            }
+
+            CLK_SysTickDelay(150000);
+        }
+        else
+        {
+            PWM_DisableOutput(PWM1, PWM_CH_0_MASK);
+        }
+    }
+}
+
