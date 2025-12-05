@@ -1,0 +1,267 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "NUC100Series.h"
+#include "MCU_init.h"
+#include "SYS_init.h"
+#include "LCD.h"
+#include "Seven_Segment.h"
+#include "Scankey.h"
+#include "GPIO.h"
+
+#define ANSWER_LEN     4
+#define HISTORY_SIZE   3
+
+static uint8_t g_answer[ANSWER_LEN];
+static uint16_t g_answer_value;
+
+static uint8_t g_myGuess[ANSWER_LEN];
+static uint8_t g_myGuessLen = 0;
+static uint8_t g_lastKey = 0;
+
+static uint8_t g_histGuess[HISTORY_SIZE][ANSWER_LEN];
+static uint8_t g_histA[HISTORY_SIZE];
+static uint8_t g_histB[HISTORY_SIZE];
+static uint8_t g_histCount = 0;
+
+uint32_t getRandomSeed(void)
+{
+    uint32_t s1, s2, s3;
+    uint32_t seed;
+    volatile int i;
+
+    for (i = 0; i < 50000; i++);
+
+    s1 = SysTick->VAL;
+    s2 = TIMER0->TDR;
+    s3 = *(volatile uint32_t *)0x20000000;
+
+    seed = s1 ^ (s2 << 8) ^ (s3 << 16);
+    if (seed == 0) seed = 0x12345678;
+
+    return seed;
+}
+
+void Display_7seg(uint16_t value)
+{
+    uint8_t d;
+
+    d = value / 1000;
+    CloseSevenSegment();
+    ShowSevenSegment(3, d);
+    CLK_SysTickDelay(5000);
+
+    value %= 1000;
+    d = value / 100;
+    CloseSevenSegment();
+    ShowSevenSegment(2, d);
+    CLK_SysTickDelay(5000);
+
+    value %= 100;
+    d = value / 10;
+    CloseSevenSegment();
+    ShowSevenSegment(1, d);
+    CLK_SysTickDelay(5000);
+
+    d = value % 10;
+    CloseSevenSegment();
+    ShowSevenSegment(0, d);
+    CLK_SysTickDelay(5000);
+}
+
+void Gen_Answer(void)
+{
+    int i, j;
+    uint8_t d, ok;
+
+    srand(getRandomSeed());
+
+    for (i = 0; i < ANSWER_LEN; i++)
+    {
+        while (1)
+        {
+            d = (rand() % 9) + 1;
+
+            ok = 1;
+            for (j = 0; j < i; j++)
+            {
+                if (g_answer[j] == d)
+                    ok = 0;
+            }
+            if (ok)
+            {
+                g_answer[i] = d;
+                break;
+            }
+        }
+    }
+
+    g_answer_value =
+        g_answer[0] * 1000 +
+        g_answer[1] * 100 +
+        g_answer[2] * 10 +
+        g_answer[3];
+}
+
+void CalcAB(uint8_t ans[], uint8_t guess[], int *A, int *B)
+{
+    int i, j;
+    *A = 0;
+    *B = 0;
+
+    for (i = 0; i < 4; i++)
+    {
+        if (guess[i] == ans[i])
+            (*A)++;
+        else
+        {
+            for (j = 0; j < 4; j++)
+                if (guess[i] == ans[j])
+                {
+                    (*B)++;
+                    break;
+                }
+        }
+    }
+}
+
+void LCD_UpdateHistory(void)
+{
+    char buf[16];
+    int i;
+
+    for (i = 0; i < HISTORY_SIZE; i++)
+    {
+        if (i < g_histCount)
+        {
+            sprintf(buf, "%d%d%d%d %dA%dB",
+                    g_histGuess[i][0],
+                    g_histGuess[i][1],
+                    g_histGuess[i][2],
+                    g_histGuess[i][3],
+                    g_histA[i],
+                    g_histB[i]);
+        }
+        else
+            sprintf(buf, " ");
+
+        print_Line(i, buf);
+    }
+}
+
+void LCD_UpdateInput(void)
+{
+    char buf[16];
+    int i;
+
+    for (i = 0; i < 16; i++)
+        buf[i] = ' ';
+    buf[15] = 0;
+
+    buf[0] = 'I';
+    buf[1] = 'n';
+    buf[2] = 'p';
+    buf[3] = 'u';
+    buf[4] = 't';
+    buf[5] = ':';
+    buf[6] = ' ';
+
+    for (i = 0; i < g_myGuessLen; i++)
+        buf[7 + i] = '0' + g_myGuess[i];
+
+    print_Line(3, buf);
+}
+
+void InsertHistory(uint8_t guess[], int A, int B)
+{
+    int i, k;
+
+    if (g_histCount < HISTORY_SIZE)
+        g_histCount++;
+
+    for (i = g_histCount - 1; i > 0; i--)
+    {
+        for (k = 0; k < 4; k++)
+            g_histGuess[i][k] = g_histGuess[i - 1][k];
+
+        g_histA[i] = g_histA[i - 1];
+        g_histB[i] = g_histB[i - 1];
+    }
+
+    for (i = 0; i < 4; i++)
+        g_histGuess[0][i] = guess[i];
+
+    g_histA[0] = A;
+    g_histB[0] = B;
+}
+
+void EINT1_IRQHandler(void)
+{
+    int A, B;
+    uint8_t guess[4];
+    uint8_t i;
+
+    GPIO_CLR_INT_FLAG(PB, BIT15);
+
+    if (g_myGuessLen != 4)
+    {
+        g_myGuessLen = 0;
+        LCD_UpdateInput();
+        return;
+    }
+
+    for (i = 0; i < 4; i++)
+        guess[i] = g_myGuess[i];
+
+    CalcAB(g_answer, guess, &A, &B);
+
+    InsertHistory(guess, A, B);
+    LCD_UpdateHistory();
+
+    g_myGuessLen = 0;
+    LCD_UpdateInput();
+}
+
+int main(void)
+{
+    uint32_t key;
+
+    SYS_Init();
+    init_LCD();
+    clear_LCD();
+
+    OpenSevenSegment();
+    OpenKeyPad();
+
+    GPIO_SetMode(PB, BIT15, GPIO_PMD_INPUT);
+    GPIO_EnableEINT1(PB, 15, GPIO_INT_FALLING);
+    NVIC_EnableIRQ(EINT1_IRQn);
+
+    Gen_Answer();
+    LCD_UpdateHistory();
+    LCD_UpdateInput();
+
+    while (1)
+    {
+        key = ScanKey();
+
+        if (key != 0 && key != g_lastKey)
+        {
+            if (g_myGuessLen < 4)
+            {
+                g_myGuess[g_myGuessLen++] = key;
+            }
+            else
+            {
+                g_myGuess[0] = g_myGuess[1];
+                g_myGuess[1] = g_myGuess[2];
+                g_myGuess[2] = g_myGuess[3];
+                g_myGuess[3] = key;
+            }
+
+            LCD_UpdateInput();
+        }
+        g_lastKey = key;
+
+        Display_7seg(g_answer_value);
+    }
+}
